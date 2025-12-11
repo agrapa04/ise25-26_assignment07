@@ -1,7 +1,9 @@
 package de.seuhd.campuscoffee.domain.implementation;
 
 import de.seuhd.campuscoffee.domain.configuration.ApprovalConfiguration;
+import de.seuhd.campuscoffee.domain.model.objects.Pos;
 import de.seuhd.campuscoffee.domain.model.objects.Review;
+import de.seuhd.campuscoffee.domain.model.objects.User;
 import de.seuhd.campuscoffee.domain.ports.api.ReviewService;
 import de.seuhd.campuscoffee.domain.ports.data.CrudDataService;
 import de.seuhd.campuscoffee.domain.ports.data.PosDataService;
@@ -46,6 +48,16 @@ public class ReviewServiceImpl extends CrudServiceImpl<Review, Long> implements 
     @Transactional
     public @NonNull Review upsert(@NonNull Review review) {
         // TODO: Implement the missing business logic here
+        // validate that the user exists
+        User user = userDataService.getById(review.authorId());
+        // validate that the point of sale exists
+        Pos pos = posDataService.getById(review.posId());
+        // validate that the user has not already submitted a review for the same point of sale
+        List<Review> existingReviews = reviewDataService.filter(pos,user)
+
+        if (!existingReviews.isEmpty()) {
+            throw new IllegalArgumentException("User with ID '" + user.getId() + "' has already submitted a review for point of sale with ID '" + pos.getId() + "'.");
+        }
 
         return super.upsert(review);
     }
@@ -64,18 +76,27 @@ public class ReviewServiceImpl extends CrudServiceImpl<Review, Long> implements 
 
         // validate that the user exists
         // TODO: Implement the required business logic here
+        userDataService.getById(review.authorId());
 
         // validate that the review exists
         // TODO: Implement the required business logic here
+        reviewDataService.getById(review.posId());
 
         // a user cannot approve their own review
         // TODO: Implement the required business logic here
+        if (review.authorId().equals(userId)) {
+            throw new IllegalArgumentException("A user cannot approve their own review.");
+        }
 
         // increment approval count
         // TODO: Implement the required business logic here
+        review = review.toBuilder()
+                .approvalCount(review.approvalCount() + 1)
+                .build();
 
         // update approval status to determine if the review now reaches the approval quorum
         // TODO: Implement the required business logic here
+        review = updateApprovalStatus(review);
 
         return reviewDataService.upsert(review);
     }
